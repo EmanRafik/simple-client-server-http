@@ -1,0 +1,28 @@
+# depslib dependency file v1.0
+1606418293 source:/home/eman/Documents/HTTP_Assignment/client_main.cpp
+	<iostream>
+	<string.h>
+	<stdio.h>
+	<stdlib.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<Client_helper.h>
+
+1606417665 /home/eman/Documents/HTTP_Assignment/include/Client_helper.h
+
+1606405743 source:/home/eman/Documents/HTTP_Assignment/main.cpp
+	<iostream>
+
+1606418302 source:/home/eman/Documents/HTTP_Assignment/src/Client_helper.cpp
+	"Client_helper.h"
+	<iostream>
+	<fstream>
+	<string>
+
+1606418308 source:/home/eman/Documents/HTTP_Assignment/src/Server_helper.cpp
+	"Server_helper.h"
+
+1606415370 /home/eman/Documents/HTTP_Assignment/include/Server_helper.h
+

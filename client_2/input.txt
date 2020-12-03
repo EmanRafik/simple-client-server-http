@@ -1,0 +1,5 @@
+client_get /welcome.html localhost
+client_get /NewFolder/file.txt localhost
+client_get /a.txt localhost
+client_get /b.txt localhost
+client_get /c.html localhost
