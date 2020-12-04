@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include "Client_helper.h"
+#include <unistd.h>
 
 #define BUFFERSIZE 1024 * 1024
 #define TIMEOUT 5000
@@ -24,7 +25,7 @@ using namespace std;
 
 void error(string message);
 void *receiveFun(void *arg);
-void processResponse();
+void *processResponse(void *arg);
 
 int main(int argc, char *argv[])
 {
@@ -78,8 +79,8 @@ void *receiveFun(void *arg)
     int sock = *((int *)arg);
     free(arg);
 
-    // pthread_t process_response_thread;
-    // pthread_create(&process_response_thread, NULL, processResponse, NULL);
+    pthread_t process_response_thread;
+    pthread_create(&process_response_thread, NULL, processResponse, NULL);
 
     while (true)
     {
@@ -102,43 +103,46 @@ void *receiveFun(void *arg)
         else
         {
             ssize_t numBytesRcvd = recv(sock, receiveBuffer + bufferEnd, BUFFERSIZE - 1 - bufferEnd, 0);
-            bufferEnd += numBytesRcvd;
+            if (numBytesRcvd > 0)
+            {         
+                pthread_mutex_lock(&buffer_mutex);
+                bufferEnd += numBytesRcvd;
+                
+                pthread_mutex_unlock(&buffer_mutex);
+                pthread_cond_signal(&buffer_cond_var);
+            }
         }
-
-        //pthread_cond_signal(&buffer_cond_var);
     }
-    processResponse();
     //pthread_join(process_response_thread, NULL);
 }
 
-void processResponse()
+void *processResponse(void *arg)
 {
-    //pthread_cond_wait(&buffer_cond_var, &buffer_mutex);
     string responseMessage = "";
     string data = "";
     bool dataFlag;
     int message_number = 0;
-    for (int i = 0; i < bufferEnd; i++)
+    for (int i = 0; i < BUFFERSIZE; i++)
     {
+        pthread_mutex_lock(&buffer_mutex);
+        if (i == bufferEnd)
+        {
+            pthread_cond_wait(&buffer_cond_var, &buffer_mutex);
+        }
+        pthread_mutex_unlock(&buffer_mutex);
+        cout << receiveBuffer[i];
         if (receiveBuffer[i] == '\0')
         {
-            // pthread_mutex_lock(&buffer_mutex);
-            // bufferEnd -= i;
-            // memmove(receiveBuffer, receiveBuffer + i, bufferEnd);
-            // if (bufferEnd == 0) {
-            //     pthread_mutex_unlock(&buffer_mutex);
-            //     break;
-            // }
-            // pthread_mutex_unlock(&buffer_mutex);
             client_helper.handleResponse(responseMessage, data, message_number);
+            if (client_helper.isLast())
+            {
+                close(client_helper.getSocket());
+                exit(0);
+            }
             message_number++;
             responseMessage = "";
             data = "";
             dataFlag = false;
-            // if (i + 1 < BUFFERSIZE && receiveBuffer[i+1] == '\0')
-            // {
-            //     pthread_cond_wait(&buffer_cond_var, &buffer_mutex);
-            // }
         }
         else if (dataFlag)
         {

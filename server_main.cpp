@@ -17,16 +17,24 @@ using namespace std;
 #define BUFFERSIZE 1024 * 1024
 #define CLIENTS_THREAD_POOL_SIZE 50
 
-
 pthread_t clientsThreadPool[CLIENTS_THREAD_POOL_SIZE];
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t clients_cond_var = PTHREAD_COND_INITIALIZER;
 queue<int> clients;
 
 void *clientsFun(void *arg);
-void processMessage(Server_helper *server_helper, char buffer[], int bufferEnd);
+void *processMessage(void *arg);
 void error(string message);
 void serveClient(int *socket);
+
+struct clientArgs
+{
+    char *buffer;
+    Server_helper *server_helper;
+    int *bufferEnd;
+    pthread_mutex_t *buffer_mutex;
+    pthread_cond_t *buffer_cond_var;
+};
 
 int main(int argc, char *argv[])
 {
@@ -86,71 +94,18 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void processMessage(Server_helper *server_helper, char buffer[], int bufferEnd)
-{
-    string line = "";
-    vector<string> headerLines;
-    string data = "";
-    //true for data lines and false for header lines
-    bool dataFlag = false;
-    for (int i = 0; i < bufferEnd; i++)
-    {
-        cout << buffer[i];
-        if (buffer[i] == '\0')
-        {
-            server_helper->parseRequest(headerLines, data);
-            headerLines.clear();
-            line = "";
-            data = "";
-            dataFlag = false;
-        }
-        else if (!dataFlag && buffer[i] == '\n')
-        {
-            headerLines.push_back(line);
-            line = "";
-        }
-        else if (!dataFlag && buffer[i] == '\r' && (i + 1) < BUFFERSIZE && buffer[i + 1] == '\n')
-        {
-            headerLines.push_back(line);
-            i++;
-            if (i + 1 < BUFFERSIZE && buffer[i + 1] == '\0')
-            {
-                server_helper->parseRequest(headerLines, data);
-                headerLines.clear();
-                line = "";
-                data = "";
-                dataFlag = false;
-            }
-            else
-            {
-                dataFlag = true;
-            }
-        }
-        else
-        {
-            if (dataFlag)
-            {
-                //cout << buffer[i];
-                data += buffer[i];
-            }
-            else
-                line += buffer[i];
-        }
-    }
-}
-
 void *clientsFun(void *arg)
 {
     while (1)
     {
-        int *sock = (int*)(malloc(sizeof(int)));
+        int *sock = (int *)(malloc(sizeof(int)));
         pthread_mutex_lock(&clients_mutex);
         if (clients.empty())
         {
             pthread_cond_wait(&clients_cond_var, &clients_mutex);
             *sock = clients.front();
             clients.pop();
-        } 
+        }
         else
         {
             *sock = clients.front();
@@ -167,7 +122,20 @@ void serveClient(int *socket)
     Server_helper server_helper(clientSocket);
     char buffer[BUFFERSIZE];
     int bufferEnd = 0;
-    while(1)
+
+    pthread_mutex_t buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_cond_t buffer_cond_var = PTHREAD_COND_INITIALIZER;
+
+    pthread_t process_message_thread;
+    struct clientArgs args;
+    args.buffer = buffer;
+    args.bufferEnd = &bufferEnd;
+    args.server_helper = &server_helper;
+    args.buffer_mutex = &buffer_mutex;
+    args.buffer_cond_var = &buffer_cond_var;
+    pthread_create(&process_message_thread, NULL, processMessage, (void*)&args);
+
+    while (1)
     {
         fd_set set;
         struct timeval timeout;
@@ -188,12 +156,80 @@ void serveClient(int *socket)
         else
         {
             ssize_t numBytesRcvd = recv(clientSocket, buffer + bufferEnd, BUFFERSIZE - 1 - bufferEnd, 0);
-            bufferEnd += numBytesRcvd;
+            if (numBytesRcvd > 0)
+            {
+                pthread_mutex_lock(&buffer_mutex);
+                bufferEnd += numBytesRcvd;
+                pthread_mutex_unlock(&buffer_mutex);
+                pthread_cond_signal(&buffer_cond_var);
+            }
         }
     }
-    //sleep(5);
-    processMessage(&server_helper, buffer, bufferEnd);
+    close(clientSocket);
+    //pthread_join(process_message_thread, NULL);
+    // processMessage(&server_helper, buffer, bufferEnd);
 }
+
+void *processMessage(void *arg)
+{
+    struct clientArgs *args = (struct clientArgs *)arg;
+    string line = "";
+    vector<string> headerLines;
+    string data = "";
+    //true for data lines and false for header lines
+    bool dataFlag = false;
+    for (int i = 0; i < BUFFERSIZE; i++)
+    {
+        pthread_mutex_lock(args->buffer_mutex);
+        if (i == *(args->bufferEnd))
+        {
+            pthread_cond_wait(args->buffer_cond_var, args->buffer_mutex);
+        }
+        pthread_mutex_unlock(args->buffer_mutex);
+        cout << args->buffer[i];
+        if (args->buffer[i] == '\0')
+        {
+            args->server_helper->parseRequest(headerLines, data);
+            headerLines.clear();
+            line = "";
+            data = "";
+            dataFlag = false;
+        }
+        else if (!dataFlag && args->buffer[i] == '\n')
+        {
+            headerLines.push_back(line);
+            line = "";
+        }
+        else if (!dataFlag && args->buffer[i] == '\r' && (i + 1) < BUFFERSIZE && args->buffer[i+1] == '\n')
+        {
+            headerLines.push_back(line);
+            i++;
+            if (i + 1 < BUFFERSIZE && args->buffer[i+1] == '\0')
+            {
+                args->server_helper->parseRequest(headerLines, data);
+                headerLines.clear();
+                line = "";
+                data = "";
+                dataFlag = false;
+            }
+            else
+            {
+                dataFlag = true;
+            }
+        }
+        else
+        {
+            if (dataFlag)
+            {
+                //cout << buffer[i];
+                data += args->buffer[i];
+            }
+            else
+                line += args->buffer[i];
+        }
+    }
+}
+
 void error(string message)
 {
     cout << message;

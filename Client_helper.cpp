@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <bits/stdc++.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #define BUFFERSIZE 1024 * 1024
 
@@ -22,6 +23,12 @@ using namespace std;
 Client_helper::Client_helper()
 {
     //ctor
+    END = false;
+    end_mutex = PTHREAD_MUTEX_INITIALIZER;
+    sent_mutex = PTHREAD_MUTEX_INITIALIZER;
+    rec_mutex = PTHREAD_MUTEX_INITIALIZER;
+    sent = 0;
+    received = 0;
 }
 
 Client_helper::~Client_helper()
@@ -33,12 +40,31 @@ void Client_helper::setSocket(int socket)
 {
     sock = socket;
 }
-
+int Client_helper::getSocket()
+{
+    return sock;
+}
 void Client_helper::setFolder(string folder)
 {
     this->clientFolder = folder;
 }
 
+bool Client_helper::isLast()
+{
+    pthread_mutex_lock(&end_mutex);
+    if (!END)
+    {
+        pthread_mutex_unlock(&end_mutex);
+        return false;
+    }
+    pthread_mutex_unlock(&end_mutex);
+    pthread_mutex_lock(&sent_mutex);
+    pthread_mutex_lock(&rec_mutex);
+    bool r = sent == received;
+    pthread_mutex_unlock(&rec_mutex);
+    pthread_mutex_unlock(&sent_mutex);
+    return r;
+}
 void Client_helper::readInputRequests()
 {
     string name = clientFolder + "/input.txt";
@@ -51,7 +77,9 @@ void Client_helper::readInputRequests()
         {
             cout << line << endl;
             parseLine(line);
+            //sleep(5);
         }
+        END = true;
         file.close();
     }
 }
@@ -110,7 +138,7 @@ void Client_helper::parseLine(string line)
                 sendBuffer[i] = request.at(i);
             }
             sendBuffer[request.length()] = '\0';
-            send(sock, sendBuffer, request.length()+1, 0);
+            send(sock, sendBuffer, request.length() + 1, 0);
             cout << "********sent********" << endl;
         }
         else
@@ -119,17 +147,20 @@ void Client_helper::parseLine(string line)
             file = clientFolder + file;
             ifstream stream(file);
             string data((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-            string request = "POST " + filePath + " HTTP/1.1\r\n"  + data;
+            string request = "POST " + filePath + " HTTP/1.1\r\n" + data;
             //sendAndReceive(request, filePath);
             for (int i = 0; i < request.length(); i++)
             {
                 sendBuffer[i] = request.at(i);
             }
             sendBuffer[request.length()] = '\0';
-            send(sock, sendBuffer, request.length()+1, 0);
+            send(sock, sendBuffer, request.length() + 1, 0);
         }
+        pthread_mutex_lock(&sent_mutex);
+        sent++;
+        pthread_mutex_unlock(&sent_mutex);
     }
-} 
+}
 
 string Client_helper::getFileName(string path)
 {
@@ -144,6 +175,9 @@ string Client_helper::getFileName(string path)
 
 void Client_helper::handleResponse(string responseMessage, string data, int message_number)
 {
+    pthread_mutex_lock(&rec_mutex);
+    received++;
+    pthread_mutex_unlock(&rec_mutex);
     cout << responseMessage << endl;
     if (responseMessage == "HTTP/1.1 200 OK\r\n" && data.length() > 0)
     {
