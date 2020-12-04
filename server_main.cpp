@@ -186,7 +186,7 @@ void *processMessage(void *arg)
             pthread_cond_wait(args->buffer_cond_var, args->buffer_mutex);
         }
         pthread_mutex_unlock(args->buffer_mutex);
-        cout << args->buffer[i];
+        //cout << args->buffer[i];
         if (args->buffer[i] == '\0')
         {
             args->server_helper->parseRequest(headerLines, data);
@@ -204,7 +204,15 @@ void *processMessage(void *arg)
         {
             headerLines.push_back(line);
             i++;
-            if (i + 1 < BUFFERSIZE && args->buffer[i+1] == '\0')
+            if (headerLines[0].substr(0,3) == "GET")
+            {
+                args->server_helper->parseRequest(headerLines, data);
+                headerLines.clear();
+                line = "";
+                data = "";
+                dataFlag = false;
+            }
+            if (i + 2 < BUFFERSIZE && args->buffer[i+1] == '\0')
             {
                 args->server_helper->parseRequest(headerLines, data);
                 headerLines.clear();

@@ -57,7 +57,7 @@ void Server_helper::parseRequest(vector<string> headers, string data)
                 else if (requestField.compare("POST") == 0)
                     methodIsGET = false;
                 else
-                    unSupportedMethod = true;
+                    unSupportedMethod = true;                    
                 break;
             case 1:
                 URL = requestField;
@@ -76,6 +76,7 @@ void Server_helper::parseRequest(vector<string> headers, string data)
         for (unsigned int i = 1; i < headers.size(); i++)
         {
             string headerField = headers[i];
+            cout << headerField << endl;
             int spaceIndex = headerField.find(" ");
             string name = headerField.substr(0, spaceIndex - 1);
             string value = headerField.substr(spaceIndex + 1);
@@ -123,7 +124,7 @@ void Server_helper::handlePOSTRequest(string URL, string data)
         file.close();
     }
 
-    string responseMessage = "HTTP/1.1 200 OK\r\n";
+    string responseMessage = "HTTP/1.1 200 OK\r\n\r\n";
     for (int i = 0; i < responseMessage.length(); i++)
     {
         sendBuffer[i] = responseMessage.at(i);
@@ -134,7 +135,7 @@ void Server_helper::handlePOSTRequest(string URL, string data)
 
 void Server_helper::handleNonExistingFile()
 {
-    string respondMessage = "HTTP/1.1 404 Not Found\r\n";
+    string respondMessage = "HTTP/1.1 404 Not Found\r\n\r\n";
     for (int i = 0; i < respondMessage.length(); i++)
     {
         sendBuffer[i] = respondMessage.at(i);
@@ -145,7 +146,7 @@ void Server_helper::handleNonExistingFile()
 
 void Server_helper::handleExistingFile(string path)
 {
-    string responseMessage = "HTTP/1.1 200 OK\r\n";
+    string responseMessage = "HTTP/1.1 200 OK\r\n\r\n";
     ifstream stream(path);
     string data((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
     responseMessage = responseMessage + data;

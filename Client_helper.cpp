@@ -131,7 +131,7 @@ void Client_helper::parseLine(string line)
     {
         if (isGET)
         {
-            string request = "GET " + filePath + " HTTP/1.1\r\n";
+            string request = "GET " + filePath + " HTTP/1.1\r\n\r\n";
             //sendAndReceive(request, filePath);
             for (int i = 0; i < request.length(); i++)
             {
@@ -147,7 +147,7 @@ void Client_helper::parseLine(string line)
             file = clientFolder + file;
             ifstream stream(file);
             string data((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-            string request = "POST " + filePath + " HTTP/1.1\r\n" + data;
+            string request = "POST " + filePath + " HTTP/1.1\r\n\r\n" + data;
             //sendAndReceive(request, filePath);
             for (int i = 0; i < request.length(); i++)
             {
