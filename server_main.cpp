@@ -187,8 +187,9 @@ void *processMessage(void *arg)
         }
         pthread_mutex_unlock(args->buffer_mutex);
         //cout << args->buffer[i];
-        if (args->buffer[i] == '\0')
+        if (args->buffer[i] == '\0' && args->buffer[i+1] == '\n' && args->buffer[i+2] == '\0')
         {
+            i = i + 2;
             args->server_helper->parseRequest(headerLines, data);
             headerLines.clear();
             line = "";
@@ -200,20 +201,14 @@ void *processMessage(void *arg)
             headerLines.push_back(line);
             line = "";
         }
-        else if (!dataFlag && args->buffer[i] == '\r' && (i + 1) < BUFFERSIZE && args->buffer[i+1] == '\n')
+        else if (!dataFlag && args->buffer[i] == '\r' && (i + 1) < BUFFERSIZE && args->buffer[i+1] == '\n' 
+        && (i + 2) < BUFFERSIZE && args->buffer[i+2] == '\r' && (i + 3) < BUFFERSIZE && args->buffer[i+3] == '\n')
         {
             headerLines.push_back(line);
-            i++;
-            if (headerLines[0].substr(0,3) == "GET")
+            i = i + 3;
+            if (i + 4 < BUFFERSIZE && args->buffer[i+4] == '\0')
             {
-                args->server_helper->parseRequest(headerLines, data);
-                headerLines.clear();
-                line = "";
-                data = "";
-                dataFlag = false;
-            }
-            if (i + 2 < BUFFERSIZE && args->buffer[i+1] == '\0')
-            {
+                i++;
                 args->server_helper->parseRequest(headerLines, data);
                 headerLines.clear();
                 line = "";

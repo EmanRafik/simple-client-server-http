@@ -1,1 +1,2 @@
-client_post /welcome.html localhost
+client_post /post.txt localhost
+client_post /icon.jpeg localhost

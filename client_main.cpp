@@ -10,7 +10,7 @@
 #include "Client_helper.h"
 #include <unistd.h>
 
-#define BUFFERSIZE 1024 * 1024
+#define BUFFERSIZE 2048 * 1024
 #define TIMEOUT 5000
 
 char receiveBuffer[BUFFERSIZE];
@@ -130,8 +130,8 @@ void *processResponse(void *arg)
             pthread_cond_wait(&buffer_cond_var, &buffer_mutex);
         }
         pthread_mutex_unlock(&buffer_mutex);
-        cout << receiveBuffer[i];
-        if (receiveBuffer[i] == '\0')
+        //cout << receiveBuffer[i];
+        if (receiveBuffer[i] == '\0' && receiveBuffer[i+1] == '\n' && receiveBuffer[i+2] == '\0')
         {
             client_helper.handleResponse(responseMessage, data, message_number);
             if (client_helper.isLast())
@@ -143,6 +143,8 @@ void *processResponse(void *arg)
             responseMessage = "";
             data = "";
             dataFlag = false;
+            i++;
+            i++;
         }
         else if (dataFlag)
         {
@@ -151,8 +153,11 @@ void *processResponse(void *arg)
         else
         {
             responseMessage += receiveBuffer[i];
-            if (receiveBuffer[i] == '\r' && i + 1 < BUFFERSIZE && receiveBuffer[i + 1] == '\n')
+            if (receiveBuffer[i] == '\r' && i + 1 < BUFFERSIZE && receiveBuffer[i + 1] == '\n' 
+            && i + 2 < BUFFERSIZE && receiveBuffer[i + 2] == '\r' && i + 3 < BUFFERSIZE && receiveBuffer[i + 3] == '\n'  )
             {
+                i++;
+                i++;
                 i++;
                 responseMessage += receiveBuffer[i];
                 dataFlag = true;

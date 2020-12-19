@@ -75,9 +75,9 @@ void Client_helper::readInputRequests()
         string line;
         while (getline(file, line))
         {
+            sleep(5);
             cout << line << endl;
             parseLine(line);
-            //sleep(5);
         }
         END = true;
         file.close();
@@ -154,7 +154,9 @@ void Client_helper::parseLine(string line)
                 sendBuffer[i] = request.at(i);
             }
             sendBuffer[request.length()] = '\0';
-            send(sock, sendBuffer, request.length() + 1, 0);
+            sendBuffer[request.length()+1] = '\n';
+            sendBuffer[request.length()+2] = '\0';
+            send(sock, sendBuffer, request.length() + 3, 0);
         }
         pthread_mutex_lock(&sent_mutex);
         sent++;

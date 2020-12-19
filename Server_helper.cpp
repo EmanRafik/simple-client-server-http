@@ -130,7 +130,9 @@ void Server_helper::handlePOSTRequest(string URL, string data)
         sendBuffer[i] = responseMessage.at(i);
     }
     sendBuffer[responseMessage.length()] = '\0';
-    send(sock, sendBuffer, responseMessage.length()+1, 0);
+    sendBuffer[responseMessage.length()+1] = '\n';
+    sendBuffer[responseMessage.length()+2] = '\0';
+    send(sock, sendBuffer, responseMessage.length()+3, 0);
 }
 
 void Server_helper::handleNonExistingFile()
@@ -141,7 +143,9 @@ void Server_helper::handleNonExistingFile()
         sendBuffer[i] = respondMessage.at(i);
     }
     sendBuffer[respondMessage.length()] = '\0';
-    send(sock, sendBuffer, respondMessage.length()+1, 0);
+    sendBuffer[respondMessage.length()+1] = '\n';
+    sendBuffer[respondMessage.length()+2] = '\0';
+    send(sock, sendBuffer, respondMessage.length()+3, 0);
 }
 
 void Server_helper::handleExistingFile(string path)
@@ -155,5 +159,7 @@ void Server_helper::handleExistingFile(string path)
         sendBuffer[i] = responseMessage.at(i);
     }
     sendBuffer[responseMessage.length()] = '\0';
-    send(sock, sendBuffer, responseMessage.length()+1, 0);
+    sendBuffer[responseMessage.length()+1] = '\n';
+    sendBuffer[responseMessage.length()+2] = '\0';
+    send(sock, sendBuffer, responseMessage.length()+3, 0);
 }

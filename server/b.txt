@@ -1,1 +1,1 @@
-bbbbbbbbbb
+This is another text file.
